@@ -814,6 +814,12 @@
 
   document.getElementById('date').value = todayStr();
   document.getElementById('time').value = nowTime();
+  // 오늘 이미 적은 기록이 있으면 마지막 부위·종목을 채워 둠 (다른 종목이면 직접 바꾸면 됨)
+  var lastE = loadEntries().slice(-1)[0];
+  if (lastE && lastE.date === todayStr()) {
+    document.getElementById('part').value = lastE.part === '기타' ? '' : lastE.part;
+    document.getElementById('name').value = lastE.name;
+  }
   render();
 
   // 오프라인에서도 열리도록 (파일로 직접 열면 동작하지 않으며 무시됨)
