@@ -67,8 +67,11 @@
   button.small { padding: 5px 9px; font-size: 13px; }
   button.chip { background: var(--chip); color: var(--accent); padding: 6px 10px; font-size: 13px; }
   button.danger { background: var(--danger); padding: 5px 9px; font-size: 13px; }
-  .tags { display: flex; gap: 10px; flex-wrap: wrap; }
-  .tags:not(:empty) { margin: 8px 0 10px; }
+  /* 고른 부위 태그를 입력칸 안에 함께 보여 줌 */
+  .tagbox { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 10px; padding: 10px 9px 8px; min-height: 42px;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .tagbox input { flex: 1 1 80px; min-width: 80px; border: none; padding: 3px 0; background: transparent; outline: none; }
+  .tags { display: contents; }
   .tag { position: relative; background: var(--chip); color: var(--accent); border-radius: 10px; padding: 6px 12px; font-size: 13px; }
   .tag-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; padding: 0; background: var(--sub); color: #fff; font-size: 12px; line-height: 18px; text-align: center; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -187,8 +190,7 @@
     <div class="row">
       <div>
         <label for="part">운동 부위</label>
-        <input type="text" id="part" list="partList" placeholder="예: Pull (여러 개 넣을 수 있어요)">
-        <div class="tags" id="partTags"></div>
+        <div class="tagbox" id="partBox"><span class="tags" id="partTags"></span><input type="text" id="part" list="partList" placeholder="예: Pull (여러 개 넣을 수 있어요)"></div>
       </div>
     </div>
     <div class="chips" id="partChips"></div>
@@ -773,6 +775,7 @@
     document.getElementById('partTags').innerHTML = partSel.map(function (p, i) {
       return '<span class="tag">' + esc(p) + '<button class="tag-x" data-i="' + i + '" aria-label="' + esc(p) + ' 빼기">×</button></span>';
     }).join('');
+    document.getElementById('part').placeholder = partSel.length ? '' : '예: Pull (여러 개 넣을 수 있어요)';
   }
   function addPart(p) {
     p = p.trim();
@@ -795,6 +798,9 @@
   document.getElementById('partTags').addEventListener('click', function (ev) {
     var i = ev.target.getAttribute('data-i');
     if (i !== null) { partSel.splice(Number(i), 1); renderPartTags(); }
+  });
+  document.getElementById('partBox').addEventListener('click', function (ev) {
+    if (ev.target.id === 'partBox') document.getElementById('part').focus();
   });
 
   document.getElementById('addBtn').addEventListener('click', function () {
