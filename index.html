@@ -132,11 +132,27 @@
   }
   .cal-sum { text-align: center; margin-top: 10px; font-size: 15px; }
   .cal-sum b { color: var(--hit); font-size: 18px; }
+  .big3 { display: grid; grid-template-columns: 24px 1fr 1fr 72px; gap: 6px 8px; align-items: center; }
+  .big3 label { margin: 0; }
+  .big3 b { font-size: 18px; color: var(--accent); }
+  .b3-est { font-weight: bold; text-align: right; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>운동 기록장</h1>
+
+  <div class="card">
+    <h2>3대 운동</h2>
+    <div class="big3">
+      <span></span><label>KG</label><label>RM</label><label>추정 1RM</label>
+      <b>S</b><input type="number" step="0.5" min="0" inputmode="decimal" data-b3="S.kg"><input type="number" min="0" inputmode="numeric" data-b3="S.rm"><span class="b3-est" id="b3-S"></span>
+      <b>B</b><input type="number" step="0.5" min="0" inputmode="decimal" data-b3="B.kg"><input type="number" min="0" inputmode="numeric" data-b3="B.rm"><span class="b3-est" id="b3-B"></span>
+      <b>D</b><input type="number" step="0.5" min="0" inputmode="decimal" data-b3="D.kg"><input type="number" min="0" inputmode="numeric" data-b3="D.rm"><span class="b3-est" id="b3-D"></span>
+    </div>
+    <div class="cal-sum">3대 합계 <b id="b3-total">0</b> kg</div>
+    <div class="hint">S 스쿼트 · B 벤치프레스 · D 데드리프트. 추정 1RM = 무게 × (1 + (횟수 − 1) ÷ 30), 1번만 들 수 있는 최대 무게를 어림한 값입니다.</div>
+  </div>
 
   <div class="card">
     <div class="row">
@@ -753,6 +769,34 @@
     reader.readAsText(file);
     ev.target.value = '';
   });
+
+  // 3대 운동: { S: {kg, rm}, B: ..., D: ... }, 입력하는 즉시 저장
+  var B3_KEY = 'workout_big3';
+  function loadBig3() {
+    try { return JSON.parse(localStorage.getItem(B3_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function renderBig3() {
+    var b3 = loadBig3(), total = 0;
+    ['S', 'B', 'D'].forEach(function (k) {
+      var v = b3[k] || {}, kg = Number(v.kg) || 0, rm = Number(v.rm) || 0;
+      var est = kg > 0 && rm > 0 ? Math.round(kg * (1 + (rm - 1) / 30) * 10) / 10 : 0;
+      total += est;
+      document.getElementById('b3-' + k).textContent = est ? est + 'kg' : '-';
+    });
+    document.getElementById('b3-total').textContent = Math.round(total * 10) / 10;
+  }
+  document.querySelectorAll('[data-b3]').forEach(function (inp) {
+    var p = inp.getAttribute('data-b3').split('.');
+    inp.value = (loadBig3()[p[0]] || {})[p[1]] || '';
+    inp.addEventListener('input', function () {
+      var b3 = loadBig3();
+      b3[p[0]] = b3[p[0]] || {};
+      b3[p[0]][p[1]] = inp.value;
+      try { localStorage.setItem(B3_KEY, JSON.stringify(b3)); } catch (e) {}
+      renderBig3();
+    });
+  });
+  renderBig3();
 
   document.getElementById('date').value = todayStr();
   document.getElementById('time').value = nowTime();
