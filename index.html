@@ -54,6 +54,8 @@
     -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 42px; text-align: left;
   }
   input::-webkit-date-and-time-value { text-align: left; }
+  /* 메모 예시만 작게 (입력 글자는 16px 그대로라 아이폰 확대 없음) */
+  #memo::placeholder { font-size: 0.7em; }
   button {
     padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
     background: var(--accent); color: #fff; font-size: 14px; font-family: inherit;
