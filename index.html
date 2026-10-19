@@ -349,6 +349,17 @@
     return g.map(function (e) { return e.time; }).filter(Boolean).sort()[0] || '';
   }
 
+  // 키 값이 같은 항목이 연달아 나올 때만 한 묶음으로 (순서 유지)
+  function runs(arr, fn) {
+    var out = [];
+    arr.forEach(function (x) {
+      var last = out[out.length - 1];
+      if (last && fn(last[0]) === fn(x)) last.push(x);
+      else out.push([x]);
+    });
+    return out;
+  }
+
   // 키 값으로 묶되, 처음 나온 순서를 그대로 유지
   function groupBy(arr, fn) {
     var out = {};
@@ -384,17 +395,15 @@
         Object.keys(byPart).forEach(function (part) {
           html += '<div class="part-title">' + esc(part) + '</div>';
 
-          var byName = groupBy(byPart[part], function (e) { return e.name; });
-          Object.keys(byName).forEach(function (name) {
-            html += '<div class="ex"><div class="ex-name">' + esc(name) + '</div>';
+          // 입력 순서대로, 연달아 한 같은 종목만 묶음 (팔굽→풀업→팔굽이면 팔굽이 두 칸)
+          runs(byPart[part], function (e) { return e.name; }).forEach(function (ex) {
+            html += '<div class="ex"><div class="ex-name">' + esc(ex[0].name) + '</div>';
 
-            // 같은 무게·횟수는 한 줄로 묶어서 세트 수만 표시
-            var bySet = groupBy(byName[name], function (e) { return e.weight + '|' + e.reps; });
-            Object.keys(bySet).forEach(function (wk) {
-              var g = bySet[wk];
+            // 연달아 한 같은 무게·횟수는 한 줄로 묶어서 세트 수만 표시
+            runs(ex, function (e) { return e.weight + '|' + e.reps; }).forEach(function (g) {
               var f = g[0];
               var memo = g.map(function (e) { return e.memo; }).filter(Boolean)[0];
-              var gkey = [date, part, name, wk].join('\u0001');
+              var gkey = f.id;
               var open = !!openKeys[gkey];
 
               html += '<div class="set-row">' +
