@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>운동 기록장</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2f6fed">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #222;
+    --sub: #777;
+    --accent: #2f6fed;
+    --danger: #e5484d;
+    --up: #1a9e55;
+    --line: #e3e6ea;
+    --chip: #eef3ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --card: #1f2227; --text: #eee; --sub: #999; --line: #333842; --chip: #26324a; --up: #3cc47a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --card: #1f2227; --text: #eee; --sub: #999; --line: #333842; --chip: #26324a; --up: #3cc47a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; font-size: 15px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 16px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  label { font-size: 13px; color: var(--sub); display: block; margin-bottom: 4px; }
+  /* 16px 미만이면 아이폰이 입력할 때 화면을 확대함 */
+  input, select {
+    width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--text); font-size: 16px; font-family: inherit;
+  }
+  button {
+    padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
+    background: var(--accent); color: #fff; font-size: 14px; font-family: inherit;
+  }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.small { padding: 5px 9px; font-size: 13px; }
+  button.chip { background: var(--chip); color: var(--accent); padding: 6px 10px; font-size: 13px; }
+  button.danger { background: var(--danger); padding: 5px 9px; font-size: 13px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tools input[type="date"], .tools select { width: auto; flex: 0 0 auto; }
+
+  .day-title {
+    font-size: 18px; font-weight: bold; margin: 22px 0 8px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--text);
+  }
+  .part-title { font-size: 16px; font-weight: bold; color: var(--accent); margin: 14px 0 6px; }
+  .ex {
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .ex-name { font-weight: bold; margin-bottom: 6px; }
+  .set-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 5px 0; font-size: 14px;
+  }
+  .set-text { min-width: 0; }
+  .set-text b { font-size: 15px; }
+  .count {
+    background: var(--chip); color: var(--accent); border-radius: 10px;
+    padding: 2px 8px; font-size: 12px; margin-left: 6px; white-space: nowrap;
+  }
+  .memo { color: var(--sub); font-size: 12px; margin-left: 6px; }
+  .sub-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 6px 0 6px 10px; border-top: 1px dashed var(--line); font-size: 14px; flex-wrap: wrap;
+  }
+  .sub-row .idx { color: var(--sub); font-size: 12px; min-width: 40px; }
+  .sub-row.edit input { width: auto; flex: 1 1 80px; padding: 6px; }
+  .sub-row.edit button { padding: 6px 9px; font-size: 13px; }
+  .empty { color: var(--sub); text-align: center; padding: 20px 0; }
+  .hint { font-size: 13px; color: var(--sub); margin: 10px 0 0; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 12px 0;
+  }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .stat-label { font-size: 12px; color: var(--sub); }
+  .stat-value { font-size: 18px; font-weight: bold; margin-top: 2px; }
+  .stat-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .up { color: var(--up); }
+  .down { color: var(--danger); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--sub); font-weight: normal; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>운동 기록장</h1>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="date">날짜</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label for="part">운동 부위</label>
+        <input type="text" id="part" list="partList" placeholder="예: 풀">
+      </div>
+    </div>
+    <div class="chips" id="partChips"></div>
+    <div class="row">
+      <div>
+        <label for="name">운동 이름</label>
+        <input type="text" id="name" list="nameList" placeholder="예: 벤치프레스">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="weight">무게(<span id="unitLabel">kg</span>)</label>
+        <input type="number" id="weight" min="0" step="0.5" inputmode="decimal" placeholder="60">
+      </div>
+      <div>
+        <label for="reps">반복 횟수</label>
+        <input type="number" id="reps" min="0" inputmode="numeric" placeholder="10">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="memo">메모 (선택)</label>
+        <input type="text" id="memo" placeholder="예: 마지막 세트 힘들었음">
+      </div>
+    </div>
+    <button id="addBtn">세트 추가</button>
+    <p class="hint">한 세트씩 추가합니다. 추가하면 날짜·부위·운동 이름은 남아 있어서 무게와 횟수만 바꿔 연속으로 넣을 수 있습니다.</p>
+  </div>
+
+  <div class="card">
+    <div class="tools">
+      <label for="unit" style="margin:0">단위:</label>
+      <select id="unit">
+        <option value="kg">kg</option>
+        <option value="lb">lb</option>
+      </select>
+      <label for="filterDate" style="margin:0">날짜 보기:</label>
+      <input type="date" id="filterDate">
+      <button class="ghost" id="showAllBtn">전체 보기</button>
+      <button class="ghost" id="exportBtn">백업 저장</button>
+      <button class="ghost" id="importBtn">백업 불러오기</button>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>무게 변화 · 분석</h2>
+    <div class="row">
+      <div>
+        <label for="graphEx">운동 선택</label>
+        <select id="graphEx"></select>
+      </div>
+      <div>
+        <label for="range">기간</label>
+        <select id="range">
+          <option value="all">전체</option>
+          <option value="1m">최근 1개월</option>
+          <option value="3m">최근 3개월</option>
+          <option value="6m">최근 6개월</option>
+          <option value="1y">최근 1년</option>
+          <option value="custom">직접 설정</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="customRange" style="display:none">
+      <div>
+        <label for="rangeFrom">시작일</label>
+        <input type="date" id="rangeFrom">
+      </div>
+      <div>
+        <label for="rangeTo">종료일</label>
+        <input type="date" id="rangeTo">
+      </div>
+    </div>
+    <div id="graph"></div>
+    <div id="stats"></div>
+    <p class="hint">그래프는 날짜별 가장 무거운 무게입니다. 볼륨은 무게 × 횟수를 모두 더한 값이며, 맨몸 기록은 분석에서 빠집니다.</p>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<datalist id="partList">
+  <option value="풀"><option value="푸쉬"><option value="레그"><option value="가슴">
+  <option value="어깨"><option value="팔"><option value="등"><option value="하체">
+  <option value="복근"><option value="유산소">
+</datalist>
+<datalist id="nameList">
+  <option value="벤치프레스"><option value="인클라인 덤벨 프레스"><option value="밀리터리 프레스">
+  <option value="사이드 레터럴 레이즈"><option value="랫풀다운"><option value="풀업">
+  <option value="바벨 로우"><option value="스쿼트"><option value="레그프레스">
+  <option value="레그 컬"><option value="레그 익스텐션"><option value="데드리프트">
+  <option value="덤벨 컬"><option value="트라이셉스 푸시다운">
+</datalist>
+
+<script>
+  var KEY = 'workout_log_v1';
+  var UNIT_KEY = 'workout_unit';
+  var PARTS = ['풀', '푸쉬', '레그', '가슴', '어깨', '팔', '등', '하체', '복근', '유산소'];
+  var RANGE_MONTHS = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
+  var LB_PER_KG = 2.20462;
+  var filterDate = '';
+  var openKeys = {};   // 펼쳐 둔 묶음 (화면에만 유지)
+  var editId = null;   // 수정 중인 세트 id
+
+  function loadEntries() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveEntries(entries) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(entries));
+    } catch (e) {
+      alert('저장에 실패했습니다. 브라우저 저장 공간 설정을 확인해 주세요.');
+    }
+  }
+
+  function getUnit() {
+    try {
+      return localStorage.getItem(UNIT_KEY) === 'lb' ? 'lb' : 'kg';
+    } catch (e) {
+      return 'kg';
+    }
+  }
+
+  // 입력(화면 단위) → 저장(kg)
+  function toKg(v) {
+    var x = getUnit() === 'lb' ? v / LB_PER_KG : v;
+    return Math.round(x * 100) / 100;
+  }
+
+  // 저장(kg) → 화면 단위
+  function fromKg(kg) {
+    var x = getUnit() === 'lb' ? kg * LB_PER_KG : kg;
+    return Math.round(x * 10) / 10;
+  }
+
+  function hasW(e) {
+    return Number(e.weight) > 0;
+  }
+
+  function wText(e) {
+    return hasW(e) ? fromKg(Number(e.weight)) + getUnit() : '맨몸';
+  }
+
+  function rText(e) {
+    return e.reps ? e.reps + '회' : '-';
+  }
+
+  function volText(kgSum) {
+    var v = getUnit() === 'lb' ? kgSum * LB_PER_KG : kgSum;
+    return Math.round(v).toLocaleString() + getUnit();
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function dateStr(d) {
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+
+  function todayStr() {
+    return dateStr(new Date());
+  }
+
+  // 키 값으로 묶되, 처음 나온 순서를 그대로 유지
+  function groupBy(arr, fn) {
+    var out = {};
+    arr.forEach(function (x) {
+      var k = fn(x);
+      (out[k] = out[k] || []).push(x);
+    });
+    return out;
+  }
+
+  function render() {
+    var unit = getUnit();
+    document.getElementById('unit').value = unit;
+    document.getElementById('unitLabel').textContent = unit;
+
+    var entries = loadEntries();
+    var shown = filterDate
+      ? entries.filter(function (e) { return e.date === filterDate; })
+      : entries;
+
+    var list = document.getElementById('list');
+    if (shown.length === 0) {
+      list.innerHTML = '<div class="card empty">기록이 없습니다.</div>';
+    } else {
+      var html = '';
+      var byDate = groupBy(shown, function (e) { return e.date; });
+      Object.keys(byDate).sort().reverse().forEach(function (date) {
+        html += '<div class="day-title">' + esc(date) + '</div>';
+
+        var byPart = groupBy(byDate[date], function (e) { return e.part || '기타'; });
+        Object.keys(byPart).forEach(function (part) {
+          html += '<div class="part-title">' + esc(part) + '</div>';
+
+          var byName = groupBy(byPart[part], function (e) { return e.name; });
+          Object.keys(byName).forEach(function (name) {
+            html += '<div class="ex"><div class="ex-name">' + esc(name) + '</div>';
+
+            // 같은 무게·횟수는 한 줄로 묶어서 세트 수만 표시
+            var bySet = groupBy(byName[name], function (e) { return e.weight + '|' + e.reps; });
+            Object.keys(bySet).forEach(function (wk) {
+              var g = bySet[wk];
+              var f = g[0];
+              var memo = g.map(function (e) { return e.memo; }).filter(Boolean)[0];
+              var gkey = [date, part, name, wk].join('\u0001');
+              var open = !!openKeys[gkey];
+
+              html += '<div class="set-row">' +
+                '<div class="set-text"><b>' + esc(wText(f)) + '</b> × ' + esc(rText(f)) +
+                  '<span class="count">' + g.length + '세트</span>' +
+                  (memo ? '<span class="memo">' + esc(memo) + '</span>' : '') +
+                '</div>' +
+                '<button class="ghost small" data-act="toggle" data-key="' + esc(gkey) + '">' +
+                  (open ? '접기' : '세트 보기') + '</button>' +
+              '</div>';
+
+              if (open) {
+                g.forEach(function (e, i) {
+                  if (editId === e.id) {
+                    var wv = hasW(e) ? fromKg(Number(e.weight)) : '';
+                    html += '<div class="sub-row edit"><span class="idx">' + (i + 1) + '세트</span>' +
+                      '<input type="number" step="0.5" min="0" inputmode="decimal" id="ew-' + esc(e.id) + '" value="' + esc(wv) + '" placeholder="' + unit + '">' +
+                      '<input type="number" min="0" inputmode="numeric" id="er-' + esc(e.id) + '" value="' + esc(e.reps) + '" placeholder="횟수">' +
+                      '<input type="text" id="em-' + esc(e.id) + '" value="' + esc(e.memo || '') + '" placeholder="메모">' +
+                      '<button data-act="save" data-id="' + esc(e.id) + '">저장</button>' +
+                      '<button class="ghost small" data-act="cancel">취소</button>' +
+                    '</div>';
+                  } else {
+                    html += '<div class="sub-row"><span class="idx">' + (i + 1) + '세트</span>' +
+                      '<span>' + esc(wText(e)) + ' × ' + esc(rText(e)) +
+                        (e.memo ? '<span class="memo">' + esc(e.memo) + '</span>' : '') + '</span>' +
+                      '<span><button class="ghost small" data-act="edit" data-id="' + esc(e.id) + '">수정</button> ' +
+                      '<button class="danger" data-act="del" data-id="' + esc(e.id) + '">삭제</button></span>' +
+                    '</div>';
+                  }
+                });
+              }
+            });
+
+            html += '</div>';
+          });
+        });
+      });
+      list.innerHTML = html;
+    }
+    renderAnalysis();
+  }
+
+  function getRange() {
+    var r = document.getElementById('range').value;
+    if (r === 'custom') {
+      return { from: document.getElementById('rangeFrom').value, to: document.getElementById('rangeTo').value };
+    }
+    if (RANGE_MONTHS[r]) {
+      var d = new Date();
+      d.setMonth(d.getMonth() - RANGE_MONTHS[r]);
+      return { from: dateStr(d), to: '' };
+    }
+    return { from: '', to: '' };
+  }
+
+  function drawChart(days) {
+    var pts = days.map(function (d) { return { date: d.date, v: fromKg(d.max) }; });
+    // 폰 화면 폭에 맞춘 크기라 글씨가 작아지지 않음
+    var W = 360, H = 200, P = 28;
+    var vals = pts.map(function (p) { return p.v; });
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if (min === max) { min -= 5; max += 5; }
+    var n = pts.length;
+    function x(i) { return n === 1 ? W / 2 : P + i * (W - 2 * P) / (n - 1); }
+    function y(v) { return H - P - (v - min) / (max - min) * (H - 2 * P); }
+    // 점이 많으면 날짜·숫자 글씨가 겹치므로 일부만 표시
+    var step = Math.ceil(n / 6);
+
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="무게 변화 그래프">';
+    svg += '<line x1="' + P + '" y1="' + (H - P) + '" x2="' + (W - P) + '" y2="' + (H - P) + '" style="stroke:var(--line)"/>';
+    if (n > 1) {
+      svg += '<polyline fill="none" stroke-width="2" style="stroke:var(--accent)" points="' +
+        pts.map(function (p, i) { return x(i) + ',' + y(p.v); }).join(' ') + '"/>';
+    }
+    pts.forEach(function (p, i) {
+      svg += '<circle cx="' + x(i) + '" cy="' + y(p.v) + '" r="4" style="fill:var(--accent)"><title>' +
+        p.date + ' ' + p.v + getUnit() + '</title></circle>';
+      if (i % step === 0 || i === n - 1) {
+        svg += '<text x="' + x(i) + '" y="' + (y(p.v) - 9) + '" text-anchor="middle" font-size="12" style="fill:var(--text)">' + p.v + '</text>' +
+          '<text x="' + x(i) + '" y="' + (H - P + 16) + '" text-anchor="middle" font-size="11" style="fill:var(--sub)">' + p.date.slice(5) + '</text>';
+      }
+    });
+    svg += '</svg>';
+    return svg + (n === 1 ? '<p class="hint">기록이 2일 이상 쌓이면 선이 그려집니다.</p>' : '');
+  }
+
+  function stat(label, value, sub, cls) {
+    return '<div class="stat"><div class="stat-label">' + label + '</div>' +
+      '<div class="stat-value' + (cls ? ' ' + cls : '') + '">' + esc(value) + '</div>' +
+      '<div class="stat-sub">' + esc(sub) + '</div></div>';
+  }
+
+  function renderAnalysis() {
+    var sel = document.getElementById('graphEx');
+    var box = document.getElementById('graph');
+    var stats = document.getElementById('stats');
+    var weighted = loadEntries().filter(hasW);
+    var names = Object.keys(groupBy(weighted, function (e) { return e.name; }));
+
+    if (names.length === 0) {
+      sel.innerHTML = '';
+      box.innerHTML = '<p class="empty">무게를 입력한 기록이 있으면 그래프가 나타납니다.</p>';
+      stats.innerHTML = '';
+      return;
+    }
+
+    var cur = sel.value;
+    sel.innerHTML = names.map(function (n) {
+      return '<option value="' + esc(n) + '">' + esc(n) + '</option>';
+    }).join('');
+    sel.value = names.indexOf(cur) >= 0 ? cur : names[0];
+
+    var rg = getRange();
+    var rows = weighted.filter(function (e) {
+      return e.name === sel.value && (!rg.from || e.date >= rg.from) && (!rg.to || e.date <= rg.to);
+    });
+    if (rows.length === 0) {
+      box.innerHTML = '<p class="empty">선택한 기간에 기록이 없습니다.</p>';
+      stats.innerHTML = '';
+      return;
+    }
+
+    var byDay = groupBy(rows, function (e) { return e.date; });
+    var days = Object.keys(byDay).sort().map(function (d) {
+      var g = byDay[d];
+      return {
+        date: d,
+        max: Math.max.apply(null, g.map(function (e) { return Number(e.weight); })),
+        sets: g.length,
+        vol: g.reduce(function (s, e) { return s + Number(e.weight) * (Number(e.reps) || 0); }, 0)
+      };
+    });
+
+    box.innerHTML = drawChart(days);
+
+    var best = days.reduce(function (a, b) { return b.max > a.max ? b : a; });
+    var diff = fromKg(days[days.length - 1].max - days[0].max);
+    var totalVol = days.reduce(function (s, d) { return s + d.vol; }, 0);
+    var totalSets = days.reduce(function (s, d) { return s + d.sets; }, 0);
+
+    var html = '<div class="stat-grid">' +
+      stat('최고 무게', fromKg(best.max) + getUnit(), best.date) +
+      stat('처음 대비', (diff > 0 ? '+' : '') + diff + getUnit(),
+        days[0].date.slice(5) + ' → ' + days[days.length - 1].date.slice(5),
+        diff > 0 ? 'up' : diff < 0 ? 'down' : '') +
+      stat('총 볼륨', volText(totalVol), totalSets + '세트') +
+      stat('운동한 날', days.length + '일', '') +
+    '</div>';
+
+    html += '<table><thead><tr><th>날짜</th><th>최고 무게</th><th>세트</th><th>볼륨</th></tr></thead><tbody>';
+    days.slice().reverse().forEach(function (d) {
+      html += '<tr><td>' + esc(d.date) + '</td><td>' + fromKg(d.max) + getUnit() + '</td><td>' +
+        d.sets + '</td><td>' + volText(d.vol) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    stats.innerHTML = html;
+  }
+
+  // 부위 빠른 선택 버튼
+  document.getElementById('partChips').innerHTML = PARTS.map(function (p) {
+    return '<button class="chip" data-part="' + esc(p) + '">' + esc(p) + '</button>';
+  }).join('');
+  document.getElementById('partChips').addEventListener('click', function (ev) {
+    var p = ev.target.getAttribute('data-part');
+    if (p) document.getElementById('part').value = p;
+  });
+
+  document.getElementById('addBtn').addEventListener('click', function () {
+    var date = document.getElementById('date').value;
+    var part = document.getElementById('part').value.trim() || '기타';
+    var name = document.getElementById('name').value.trim();
+    var wRaw = document.getElementById('weight').value;
+    var reps = document.getElementById('reps').value;
+    var memo = document.getElementById('memo').value.trim();
+
+    if (!date) { alert('날짜를 입력해 주세요.'); return; }
+    if (!name) { alert('운동 이름을 입력해 주세요.'); return; }
+
+    var entries = loadEntries();
+    entries.push({
+      id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
+      date: date,
+      part: part,
+      name: name,
+      weight: wRaw === '' ? '' : toKg(Number(wRaw)),
+      reps: reps,
+      memo: memo
+    });
+    saveEntries(entries);
+
+    // 다음 세트를 바로 넣을 수 있게 무게·횟수·메모만 비움
+    document.getElementById('weight').value = '';
+    document.getElementById('reps').value = '';
+    document.getElementById('memo').value = '';
+    document.getElementById('weight').focus();
+    render();
+  });
+
+  document.getElementById('list').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+
+    if (act === 'toggle') {
+      var k = b.getAttribute('data-key');
+      openKeys[k] = !openKeys[k];
+      render();
+    } else if (act === 'edit') {
+      editId = b.getAttribute('data-id');
+      render();
+    } else if (act === 'cancel') {
+      editId = null;
+      render();
+    } else if (act === 'save') {
+      var id = b.getAttribute('data-id');
+      var wRaw = document.getElementById('ew-' + id).value;
+      var reps = document.getElementById('er-' + id).value;
+      var memo = document.getElementById('em-' + id).value.trim();
+      saveEntries(loadEntries().map(function (e) {
+        if (e.id !== id) return e;
+        return { id: e.id, date: e.date, part: e.part, name: e.name,
+          weight: wRaw === '' ? '' : toKg(Number(wRaw)), reps: reps, memo: memo };
+      }));
+      editId = null;
+      render();
+    } else if (act === 'del') {
+      var did = b.getAttribute('data-id');
+      if (!confirm('이 세트를 삭제할까요?')) return;
+      saveEntries(loadEntries().filter(function (e) { return e.id !== did; }));
+      render();
+    }
+  });
+
+  document.getElementById('unit').addEventListener('change', function (ev) {
+    try { localStorage.setItem(UNIT_KEY, ev.target.value); } catch (e) {}
+    render();
+  });
+
+  document.getElementById('graphEx').addEventListener('change', renderAnalysis);
+  document.getElementById('range').addEventListener('change', function (ev) {
+    document.getElementById('customRange').style.display = ev.target.value === 'custom' ? '' : 'none';
+    renderAnalysis();
+  });
+  document.getElementById('rangeFrom').addEventListener('change', renderAnalysis);
+  document.getElementById('rangeTo').addEventListener('change', renderAnalysis);
+
+  document.getElementById('filterDate').addEventListener('change', function (ev) {
+    filterDate = ev.target.value;
+    render();
+  });
+
+  document.getElementById('showAllBtn').addEventListener('click', function () {
+    filterDate = '';
+    document.getElementById('filterDate').value = '';
+    render();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(loadEntries(), null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '운동기록_백업_' + todayStr() + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById('importBtn').addEventListener('click', function () {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', function (ev) {
+    var file = ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var incoming = JSON.parse(reader.result);
+        if (!Array.isArray(incoming)) throw new Error('형식 오류');
+        var current = loadEntries();
+        var ids = {};
+        current.forEach(function (e) { ids[e.id] = true; });
+        incoming.forEach(function (e) {
+          if (e && e.id && !ids[e.id]) current.push(e);
+        });
+        saveEntries(current);
+        render();
+        alert('백업을 불러왔습니다.');
+      } catch (e) {
+        alert('백업 파일을 읽을 수 없습니다.');
+      }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
+  });
+
+  document.getElementById('date').value = todayStr();
+  render();
+
+  // 오프라인에서도 열리도록 (파일로 직접 열면 동작하지 않으며 무시됨)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>
