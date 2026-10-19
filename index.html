@@ -19,6 +19,7 @@
     --up: #1a9e55;
     --line: #e3e6ea;
     --chip: #eef3ff;
+    --hit: #e5303a;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -48,6 +49,11 @@
     width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 6px;
     background: var(--bg); color: var(--text); font-size: 16px; font-family: inherit;
   }
+  /* 아이폰 날짜 칸은 기본 모양이 폭을 무시하고 옆 칸을 덮으므로 기본 모양을 끔 */
+  input[type="date"] {
+    -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 42px; text-align: left;
+  }
+  input[type="date"]::-webkit-date-and-time-value { text-align: left; }
   button {
     padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
     background: var(--accent); color: #fff; font-size: 14px; font-family: inherit;
@@ -58,7 +64,8 @@
   button.danger { background: var(--danger); padding: 5px 9px; font-size: 13px; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
   .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .tools input[type="date"], .tools select { width: auto; flex: 0 0 auto; }
+  .tools select { width: auto; flex: 0 0 auto; }
+  .tools input[type="date"] { width: 150px; flex: 0 0 auto; }
 
   .day-title {
     font-size: 18px; font-weight: bold; margin: 22px 0 8px; padding-bottom: 6px;
@@ -103,6 +110,26 @@
   th, td { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: right; }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--sub); font-weight: normal; font-size: 12px; }
+
+  .cal-head { display: flex; justify-content: center; align-items: center; gap: 16px; margin-bottom: 10px; }
+  .cal-head b { font-size: 18px; min-width: 100px; text-align: center; }
+  .cal-head button { background: transparent; color: var(--text); font-size: 20px; padding: 2px 10px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-wd { text-align: center; font-size: 12px; color: var(--sub); padding-bottom: 4px; }
+  .cal-cell {
+    background: var(--bg); border-radius: 4px; min-height: 52px; padding: 6px 2px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 14px; color: var(--sub); min-width: 0;
+  }
+  .cal-cell.blank { background: transparent; }
+  .cal-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .cal-cell.hit { background: var(--hit); color: #fff; cursor: pointer; font-weight: bold; }
+  .cal-part {
+    font-size: 11px; font-weight: normal; max-width: 100%;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .cal-sum { text-align: center; margin-top: 10px; font-size: 15px; }
+  .cal-sum b { color: var(--hit); font-size: 18px; }
 </style>
 </head>
 <body>
@@ -161,6 +188,18 @@
       <button class="ghost" id="importBtn">백업 불러오기</button>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none">
     </div>
+  </div>
+
+  <div class="card">
+    <h2>출석 달력</h2>
+    <div class="cal-head">
+      <button id="calPrev" aria-label="이전 달">‹</button>
+      <b id="calTitle"></b>
+      <button id="calNext" aria-label="다음 달">›</button>
+    </div>
+    <div class="cal" id="cal"></div>
+    <div class="cal-sum" id="calSum"></div>
+    <p class="hint">빨간 날을 누르면 아래 목록에 그날 기록만 보입니다.</p>
   </div>
 
   <div class="card">
@@ -376,7 +415,43 @@
       });
       list.innerHTML = html;
     }
+    renderCalendar();
     renderAnalysis();
+  }
+
+  var calMonth = todayStr().slice(0, 7);   // 'YYYY-MM'
+
+  function renderCalendar() {
+    var y = Number(calMonth.slice(0, 4)), m = Number(calMonth.slice(5, 7));
+    var byDate = groupBy(loadEntries(), function (e) { return e.date; });
+    var offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;   // 월요일 시작
+    var daysIn = new Date(y, m, 0).getDate();
+    var today = todayStr();
+    var count = 0;
+
+    var html = ['월', '화', '수', '목', '금', '토', '일'].map(function (w) {
+      return '<div class="cal-wd">' + w + '</div>';
+    }).join('');
+    for (var i = 0; i < offset; i++) html += '<div class="cal-cell blank"></div>';
+    for (var d = 1; d <= daysIn; d++) {
+      var ds = calMonth + '-' + String(d).padStart(2, '0');
+      var g = byDate[ds];
+      var cls = 'cal-cell' + (g ? ' hit' : '') + (ds === today ? ' today' : '');
+      var parts = g ? Object.keys(groupBy(g, function (e) { return e.part || '기타'; })).join('·') : '';
+      if (g) count++;
+      html += '<div class="' + cls + '"' + (g ? ' data-date="' + ds + '" title="' + esc(parts) + '"' : '') + '>' +
+        d + (g ? '<span class="cal-part">' + esc(parts) + '</span>' : '') + '</div>';
+    }
+
+    document.getElementById('calTitle').textContent = y + '. ' + String(m).padStart(2, '0') + '.';
+    document.getElementById('cal').innerHTML = html;
+    document.getElementById('calSum').innerHTML = m + '월 운동 <b>' + count + '</b>회';
+  }
+
+  function moveMonth(delta) {
+    var d = new Date(Number(calMonth.slice(0, 4)), Number(calMonth.slice(5, 7)) - 1 + delta, 1);
+    calMonth = dateStr(d).slice(0, 7);
+    renderCalendar();
   }
 
   function getRange() {
@@ -573,6 +648,17 @@
   document.getElementById('unit').addEventListener('change', function (ev) {
     try { localStorage.setItem(UNIT_KEY, ev.target.value); } catch (e) {}
     render();
+  });
+
+  document.getElementById('calPrev').addEventListener('click', function () { moveMonth(-1); });
+  document.getElementById('calNext').addEventListener('click', function () { moveMonth(1); });
+  document.getElementById('cal').addEventListener('click', function (ev) {
+    var cell = ev.target.closest('[data-date]');
+    if (!cell) return;
+    filterDate = cell.getAttribute('data-date');
+    document.getElementById('filterDate').value = filterDate;
+    render();
+    document.getElementById('list').scrollIntoView({ behavior: 'smooth' });
   });
 
   document.getElementById('graphEx').addEventListener('change', renderAnalysis);
