@@ -58,7 +58,7 @@
   #memo::placeholder { font-size: 0.7em; }
   label.nodata { display: flex; align-items: center; gap: 4px; margin: 6px 0 0; font-size: 12px; }
   label.nodata input { width: auto; margin: 0; }
-  input:disabled { opacity: 0.4; }
+  input:disabled, select:disabled { opacity: 0.4; }
   button {
     padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
     background: var(--accent); color: #fff; font-size: 14px; font-family: inherit;
@@ -234,12 +234,12 @@
         <label class="nodata"><input type="checkbox" id="cHrNone"> 데이터 없음</label>
       </div>
       <div>
-        <label for="cZone">유지 Zone</label>
+        <label for="cZone">Zone</label>
         <select id="cZone">
           <option value="">선택</option>
           <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-          <option value="none">데이터 없음</option>
         </select>
+        <label class="nodata"><input type="checkbox" id="cZoneNone"> 데이터 없음</label>
       </div>
     </div>
     <button id="cAddBtn">유산소 추가</button>
@@ -546,9 +546,9 @@
                 // 심박 칸을 비우면 데이터 없음으로 저장
                 '<input type="number" min="0" inputmode="numeric" id="ch-' + esc(c.id) + '" value="' + esc(c.hr === 'none' ? '' : c.hr || '') + '" placeholder="심박 (없으면 비움)">' +
                 '<select id="cz-' + esc(c.id) + '">' +
-                  ['', '1', '2', '3', '4', '5', 'none'].map(function (z) {
-                    var label = z === 'none' ? '데이터 없음' : z ? 'Zone ' + z : 'Zone';
-                    return '<option value="' + z + '"' + (String(c.zone || '') === z ? ' selected' : '') + '>' + label + '</option>';
+                  // 심박처럼 Zone도 비우면 데이터 없음으로 저장
+                  ['', '1', '2', '3', '4', '5'].map(function (z) {
+                    return '<option value="' + z + '"' + (String(c.zone || '') === z ? ' selected' : '') + '>' + (z ? 'Zone ' + z : 'Zone 없음') + '</option>';
                   }).join('') +
                 '</select>' +
                 '<button data-act="csave" data-id="' + esc(c.id) + '">저장</button>' +
@@ -813,7 +813,7 @@
           time: document.getElementById('ct-' + sid).value,
           min: document.getElementById('cm-' + sid).value,
           hr: document.getElementById('ch-' + sid).value || 'none',
-          zone: document.getElementById('cz-' + sid).value };
+          zone: document.getElementById('cz-' + sid).value || 'none' };
       }));
       editId = null;
       render();
@@ -833,7 +833,7 @@
       type: document.getElementById('cType').value.trim(),
       min: document.getElementById('cMin').value,
       hr: document.getElementById('cHrNone').checked ? 'none' : document.getElementById('cHr').value,
-      zone: document.getElementById('cZone').value
+      zone: document.getElementById('cZoneNone').checked ? 'none' : document.getElementById('cZone').value
     };
     if (!c.date) { alert('날짜를 입력해 주세요.'); return; }
     var hasHr = c.hr && c.hr !== 'none', hasZone = c.zone && c.zone !== 'none';
@@ -846,10 +846,13 @@
     render();
   });
 
-  document.getElementById('cHrNone').addEventListener('change', function (ev) {
-    var hr = document.getElementById('cHr');
-    hr.disabled = ev.target.checked;
-    if (ev.target.checked) hr.value = '';
+  // '데이터 없음'을 체크하면 옆 칸을 비우고 끔
+  [['cHrNone', 'cHr'], ['cZoneNone', 'cZone']].forEach(function (p) {
+    document.getElementById(p[0]).addEventListener('change', function (ev) {
+      var f = document.getElementById(p[1]);
+      f.disabled = ev.target.checked;
+      if (ev.target.checked) f.value = '';
+    });
   });
 
   document.getElementById('cardioChips').innerHTML = CARDIO_TYPES.map(function (t) {
