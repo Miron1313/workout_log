@@ -56,6 +56,9 @@
   input::-webkit-date-and-time-value { text-align: left; }
   /* 메모 예시만 작게 (입력 글자는 16px 그대로라 아이폰 확대 없음) */
   #memo::placeholder { font-size: 0.7em; }
+  label.nodata { display: flex; align-items: center; gap: 4px; margin: 6px 0 0; font-size: 12px; }
+  label.nodata input { width: auto; margin: 0; }
+  input:disabled { opacity: 0.4; }
   button {
     padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
     background: var(--accent); color: #fff; font-size: 14px; font-family: inherit;
@@ -177,7 +180,7 @@
     <div class="chips" id="partChips"></div>
     <div class="row">
       <div>
-        <label for="name">운동 이름</label>
+        <label for="name">운동 종목</label>
         <input type="text" id="name" list="nameList" placeholder="예: 벤치프레스">
       </div>
     </div>
@@ -198,7 +201,7 @@
       </div>
     </div>
     <button id="addBtn">세트 추가</button>
-    <p class="hint">한 세트씩 추가합니다. 추가하면 날짜·부위·운동 이름은 남아 있어서 무게와 횟수만 바꿔 연속으로 넣을 수 있습니다.</p>
+    <p class="hint">한 세트씩 추가합니다. 추가하면 날짜·부위·운동 종목은 남아 있어서 무게와 횟수만 바꿔 연속으로 넣을 수 있습니다.</p>
   </div>
 
   <div class="card">
@@ -215,18 +218,27 @@
     </div>
     <div class="row">
       <div>
+        <label for="cType">운동 종목</label>
+        <input type="text" id="cType" list="cardioList" placeholder="예: 뛰기">
+      </div>
+    </div>
+    <div class="chips" id="cardioChips"></div>
+    <div class="row">
+      <div>
         <label for="cMin">진행 시간(분)</label>
         <input type="number" id="cMin" min="0" inputmode="numeric" placeholder="30">
       </div>
       <div>
         <label for="cHr">평균 심박(bpm)</label>
         <input type="number" id="cHr" min="0" inputmode="numeric" placeholder="140">
+        <label class="nodata"><input type="checkbox" id="cHrNone"> 데이터 없음</label>
       </div>
       <div>
         <label for="cZone">유지 Zone</label>
         <select id="cZone">
           <option value="">선택</option>
           <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          <option value="none">데이터 없음</option>
         </select>
       </div>
     </div>
@@ -300,6 +312,7 @@
 </div>
 
 <datalist id="partList"></datalist>
+<datalist id="cardioList"></datalist>
 <datalist id="nameList">
   <option value="벤치프레스"><option value="인클라인 덤벨 프레스"><option value="밀리터리 프레스">
   <option value="사이드 레터럴 레이즈"><option value="랫풀다운"><option value="풀업">
@@ -312,6 +325,7 @@
   var KEY = 'workout_log_v1';
   var UNIT_KEY = 'workout_unit';
   var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '하체', '복근', '홈트레이닝'];
+  var CARDIO_TYPES = ['걷기', '뛰기', '스텝밀', '수영', '사이클', '로잉', '줄넘기', '등산'];
   var CARDIO_KEY = 'workout_cardio_v1';   // 유산소는 근력 분석에 섞이지 않게 따로 저장
   var RANGE_MONTHS = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
   var LB_PER_KG = 2.20462;
@@ -352,9 +366,12 @@
     }
   }
 
+  // 심박·Zone이 'none'(데이터 없음)이거나 비어 있으면 빼고, 둘 다 없으면 '심박 데이터 없음'
   function cardioText(c) {
-    return [c.min ? c.min + '분' : '', c.hr ? '평균 ' + c.hr + 'bpm' : '', c.zone ? 'Zone ' + c.zone : '']
-      .filter(Boolean).join(' · ') || '유산소';
+    var hr = c.hr && c.hr !== 'none' ? '평균 ' + c.hr + 'bpm' : '';
+    var zone = c.zone && c.zone !== 'none' ? 'Zone ' + c.zone : '';
+    return [c.type, c.min ? c.min + '분' : '', hr, zone, !hr && !zone ? '심박 데이터 없음' : '']
+      .filter(Boolean).join(' · ');
   }
 
   function getUnit() {
@@ -523,12 +540,15 @@
           cByDate[date].forEach(function (c) {
             if (editId === c.id) {
               html += '<div class="sub-row edit">' +
+                '<input type="text" list="cardioList" id="cy-' + esc(c.id) + '" value="' + esc(c.type || '') + '" placeholder="종목">' +
                 '<input type="time" id="ct-' + esc(c.id) + '" value="' + esc(c.time || '') + '">' +
                 '<input type="number" min="0" inputmode="numeric" id="cm-' + esc(c.id) + '" value="' + esc(c.min || '') + '" placeholder="분">' +
-                '<input type="number" min="0" inputmode="numeric" id="ch-' + esc(c.id) + '" value="' + esc(c.hr || '') + '" placeholder="심박">' +
+                // 심박 칸을 비우면 데이터 없음으로 저장
+                '<input type="number" min="0" inputmode="numeric" id="ch-' + esc(c.id) + '" value="' + esc(c.hr === 'none' ? '' : c.hr || '') + '" placeholder="심박 (없으면 비움)">' +
                 '<select id="cz-' + esc(c.id) + '">' +
-                  ['', '1', '2', '3', '4', '5'].map(function (z) {
-                    return '<option value="' + z + '"' + (String(c.zone || '') === z ? ' selected' : '') + '>' + (z ? 'Zone ' + z : 'Zone') + '</option>';
+                  ['', '1', '2', '3', '4', '5', 'none'].map(function (z) {
+                    var label = z === 'none' ? '데이터 없음' : z ? 'Zone ' + z : 'Zone';
+                    return '<option value="' + z + '"' + (String(c.zone || '') === z ? ' selected' : '') + '>' + label + '</option>';
                   }).join('') +
                 '</select>' +
                 '<button data-act="csave" data-id="' + esc(c.id) + '">저장</button>' +
@@ -727,7 +747,7 @@
     var memo = document.getElementById('memo').value.trim();
 
     if (!date) { alert('날짜를 입력해 주세요.'); return; }
-    if (!name) { alert('운동 이름을 입력해 주세요.'); return; }
+    if (!name) { alert('운동 종목을 입력해 주세요.'); return; }
 
     var entries = loadEntries();
     entries.push({
@@ -789,9 +809,10 @@
       saveCardio(loadCardio().map(function (c) {
         if (c.id !== sid) return c;
         return { id: c.id, date: c.date,
+          type: document.getElementById('cy-' + sid).value.trim(),
           time: document.getElementById('ct-' + sid).value,
           min: document.getElementById('cm-' + sid).value,
-          hr: document.getElementById('ch-' + sid).value,
+          hr: document.getElementById('ch-' + sid).value || 'none',
           zone: document.getElementById('cz-' + sid).value };
       }));
       editId = null;
@@ -809,17 +830,37 @@
       id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
       date: document.getElementById('cDate').value,
       time: document.getElementById('cTime').value,
+      type: document.getElementById('cType').value.trim(),
       min: document.getElementById('cMin').value,
-      hr: document.getElementById('cHr').value,
+      hr: document.getElementById('cHrNone').checked ? 'none' : document.getElementById('cHr').value,
       zone: document.getElementById('cZone').value
     };
     if (!c.date) { alert('날짜를 입력해 주세요.'); return; }
-    if (!c.min && !c.hr && !c.zone) { alert('진행 시간, 평균 심박, Zone 중 하나는 입력해 주세요.'); return; }
+    var hasHr = c.hr && c.hr !== 'none', hasZone = c.zone && c.zone !== 'none';
+    if (!c.min && !hasHr && !hasZone) { alert('진행 시간을 입력해 주세요.'); return; }
     var list = loadCardio();
     list.push(c);
     saveCardio(list);
+    // 종목·'데이터 없음' 체크는 남겨 둠 (같은 종목을 이어서 적기 쉽게)
     ['cMin', 'cHr', 'cZone'].forEach(function (id) { document.getElementById(id).value = ''; });
     render();
+  });
+
+  document.getElementById('cHrNone').addEventListener('change', function (ev) {
+    var hr = document.getElementById('cHr');
+    hr.disabled = ev.target.checked;
+    if (ev.target.checked) hr.value = '';
+  });
+
+  document.getElementById('cardioChips').innerHTML = CARDIO_TYPES.map(function (t) {
+    return '<button class="chip" data-type="' + esc(t) + '">' + esc(t) + '</button>';
+  }).join('');
+  document.getElementById('cardioList').innerHTML = CARDIO_TYPES.map(function (t) {
+    return '<option value="' + esc(t) + '">';
+  }).join('');
+  document.getElementById('cardioChips').addEventListener('click', function (ev) {
+    var t = ev.target.getAttribute('data-type');
+    if (t) document.getElementById('cType').value = t;
   });
 
   document.getElementById('unit').addEventListener('change', function (ev) {
