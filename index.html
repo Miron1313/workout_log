@@ -67,6 +67,10 @@
   button.small { padding: 5px 9px; font-size: 13px; }
   button.chip { background: var(--chip); color: var(--accent); padding: 6px 10px; font-size: 13px; }
   button.danger { background: var(--danger); padding: 5px 9px; font-size: 13px; }
+  .tags { display: flex; gap: 10px; flex-wrap: wrap; }
+  .tags:not(:empty) { margin: 8px 0 10px; }
+  .tag { position: relative; background: var(--chip); color: var(--accent); border-radius: 10px; padding: 6px 12px; font-size: 13px; }
+  .tag-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; padding: 0; background: var(--sub); color: #fff; font-size: 12px; line-height: 18px; text-align: center; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
   .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .tools select { width: auto; flex: 0 0 auto; }
@@ -183,7 +187,8 @@
     <div class="row">
       <div>
         <label for="part">운동 부위</label>
-        <input type="text" id="part" list="partList" placeholder="예: Pull">
+        <input type="text" id="part" list="partList" placeholder="예: Pull (여러 개 넣을 수 있어요)">
+        <div class="tags" id="partTags"></div>
       </div>
     </div>
     <div class="chips" id="partChips"></div>
@@ -759,14 +764,40 @@
   document.getElementById('partList').innerHTML = PARTS.map(function (p) {
     return '<option value="' + esc(p) + '">';
   }).join('');
+  // 고른 부위들 (여러 개, 순서 유지). 기록에는 ', '로 이어 붙여 저장
+  var partSel = [];
+  function renderPartTags() {
+    document.getElementById('partTags').innerHTML = partSel.map(function (p, i) {
+      return '<span class="tag">' + esc(p) + '<button class="tag-x" data-i="' + i + '" aria-label="' + esc(p) + ' 빼기">×</button></span>';
+    }).join('');
+  }
+  function addPart(p) {
+    p = p.trim();
+    if (p && partSel.indexOf(p) < 0) partSel.push(p);
+    renderPartTags();
+  }
+  function flushPartInput() {
+    var el = document.getElementById('part');
+    addPart(el.value);
+    el.value = '';
+  }
   document.getElementById('partChips').addEventListener('click', function (ev) {
     var p = ev.target.getAttribute('data-part');
-    if (p) document.getElementById('part').value = p;
+    if (p) addPart(p);
+  });
+  document.getElementById('part').addEventListener('change', flushPartInput);
+  document.getElementById('part').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); flushPartInput(); }
+  });
+  document.getElementById('partTags').addEventListener('click', function (ev) {
+    var i = ev.target.getAttribute('data-i');
+    if (i !== null) { partSel.splice(Number(i), 1); renderPartTags(); }
   });
 
   document.getElementById('addBtn').addEventListener('click', function () {
     var date = document.getElementById('date').value;
-    var part = document.getElementById('part').value.trim() || '기타';
+    flushPartInput();
+    var part = partSel.join(', ') || '기타';
     var name = document.getElementById('name').value.trim();
     var wRaw = document.getElementById('weight').value;
     var reps = document.getElementById('reps').value;
@@ -1021,7 +1052,8 @@
   // 오늘 이미 적은 기록이 있으면 마지막 부위·종목을 채워 둠 (다른 종목이면 직접 바꾸면 됨)
   var lastE = loadEntries().slice(-1)[0];
   if (lastE && lastE.date === todayStr()) {
-    document.getElementById('part').value = lastE.part === '기타' ? '' : lastE.part;
+    partSel = lastE.part === '기타' ? [] : lastE.part.split(', ');
+    renderPartTags();
     document.getElementById('name').value = lastE.name;
   }
   render();
