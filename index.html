@@ -92,7 +92,7 @@
     padding: 6px 0 6px 10px; border-top: 1px dashed var(--line); font-size: 14px; flex-wrap: wrap;
   }
   .sub-row .idx { color: var(--sub); font-size: 12px; min-width: 40px; }
-  .sub-row.edit input { width: auto; flex: 1 1 80px; padding: 6px; }
+  .sub-row.edit input, .sub-row.edit select { width: auto; flex: 1 1 80px; padding: 6px; }
   .sub-row.edit button { padding: 6px 9px; font-size: 13px; }
   .empty { color: var(--sub); text-align: center; padding: 20px 0; }
   .hint { font-size: 13px; color: var(--sub); margin: 10px 0 0; }
@@ -519,9 +519,25 @@
         if (cByDate[date]) {
           html += '<div class="part-title">유산소</div><div class="ex">';
           cByDate[date].forEach(function (c) {
+            if (editId === c.id) {
+              html += '<div class="sub-row edit">' +
+                '<input type="time" id="ct-' + esc(c.id) + '" value="' + esc(c.time || '') + '">' +
+                '<input type="number" min="0" inputmode="numeric" id="cm-' + esc(c.id) + '" value="' + esc(c.min || '') + '" placeholder="분">' +
+                '<input type="number" min="0" inputmode="numeric" id="ch-' + esc(c.id) + '" value="' + esc(c.hr || '') + '" placeholder="심박">' +
+                '<select id="cz-' + esc(c.id) + '">' +
+                  ['', '1', '2', '3', '4', '5'].map(function (z) {
+                    return '<option value="' + z + '"' + (String(c.zone || '') === z ? ' selected' : '') + '>' + (z ? 'Zone ' + z : 'Zone') + '</option>';
+                  }).join('') +
+                '</select>' +
+                '<button data-act="csave" data-id="' + esc(c.id) + '">저장</button>' +
+                '<button class="ghost small" data-act="cancel">취소</button>' +
+              '</div>';
+              return;
+            }
             html += '<div class="set-row"><div class="set-text"><b>' + esc(cardioText(c)) + '</b>' +
                 (c.time ? '<span class="memo">' + esc(c.time) + ' 시작</span>' : '') + '</div>' +
-              '<button class="danger" data-act="cdel" data-id="' + esc(c.id) + '">삭제</button></div>';
+              '<span><button class="ghost small" data-act="edit" data-id="' + esc(c.id) + '">수정</button> ' +
+              '<button class="danger" data-act="cdel" data-id="' + esc(c.id) + '">삭제</button></span></div>';
           });
           html += '</div>';
         }
@@ -765,6 +781,18 @@
       var did = b.getAttribute('data-id');
       if (!confirm('이 세트를 삭제할까요?')) return;
       saveEntries(loadEntries().filter(function (e) { return e.id !== did; }));
+      render();
+    } else if (act === 'csave') {
+      var sid = b.getAttribute('data-id');
+      saveCardio(loadCardio().map(function (c) {
+        if (c.id !== sid) return c;
+        return { id: c.id, date: c.date,
+          time: document.getElementById('ct-' + sid).value,
+          min: document.getElementById('cm-' + sid).value,
+          hr: document.getElementById('ch-' + sid).value,
+          zone: document.getElementById('cz-' + sid).value };
+      }));
+      editId = null;
       render();
     } else if (act === 'cdel') {
       var cid = b.getAttribute('data-id');
