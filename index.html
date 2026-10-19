@@ -133,9 +133,10 @@
   .cal-sum { text-align: center; margin-top: 10px; font-size: 15px; }
   .cal-sum b { color: var(--hit); font-size: 18px; }
   .big3 { display: grid; grid-template-columns: 20px 1fr 1fr 52px 64px; gap: 6px 8px; align-items: center; }
-  .big3 label { margin: 0; }
+  /* 제목·입력·결과를 모두 칸 가운데에 맞춰 세로줄이 똑바로 보이게 */
+  .big3 label, .big3 input, .b3-est { margin: 0; text-align: center; }
   .big3 b { font-size: 18px; color: var(--accent); }
-  .b3-est { font-weight: bold; text-align: right; }
+  .b3-est { font-weight: bold; white-space: nowrap; }
 </style>
 </head>
 <body>
