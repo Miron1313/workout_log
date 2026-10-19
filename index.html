@@ -130,6 +130,15 @@
   .cal-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
   .cal-cell.hit { background: var(--hit); color: #fff; cursor: pointer; font-weight: bold; }
   .cal-time { font-size: 12px; }
+  .day-card {
+    display: block; width: 100%; text-align: left; margin: 10px 0; padding: 12px 14px;
+    background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .day-card-top { display: flex; align-items: baseline; font-size: 16px; }
+  .day-more { margin-left: auto; color: var(--accent); font-size: 13px; }
+  .day-card-sub { display: block; color: var(--sub); font-size: 13px; margin-top: 4px; }
+  .day-title { display: flex; align-items: baseline; }
+  .day-fold { margin-left: auto; }
   .day-time { font-size: 14px; font-weight: normal; color: var(--sub); margin-left: 8px; }
   .cal-part {
     font-size: 11px; font-weight: normal; max-width: 100%;
@@ -479,8 +488,25 @@
       var dates = Object.keys(byDate).concat(Object.keys(cByDate).filter(function (d) { return !byDate[d]; }));
       dates.sort().reverse().forEach(function (date) {
         var ft = firstTime((byDate[date] || []).concat(cByDate[date] || []));
+        // 지난 날(자정이 지난 기록)은 요약 카드 하나로 접어 두고, 누르면 펼침. 달력에서 고른 날은 펼침
+        var dayKey = 'day:' + date;
+        var past = date < todayStr() && filterDate !== date;
+        if (past && !openKeys[dayKey]) {
+          var parts = Object.keys(groupBy(byDate[date] || [], function (e) { return e.part || '기타'; }));
+          if (cByDate[date]) parts.push('유산소');
+          var sets = (byDate[date] || []).length;
+          var cmin = (cByDate[date] || []).reduce(function (s, c) { return s + (Number(c.min) || 0); }, 0);
+          html += '<button class="day-card" data-act="toggle" data-key="' + esc(dayKey) + '">' +
+            '<span class="day-card-top"><b>' + esc(date) + '</b>' +
+              (ft ? '<span class="day-time">' + esc(ft) + ' 시작</span>' : '') + '<span class="day-more">펼치기 ▾</span></span>' +
+            '<span class="day-card-sub">' + esc(parts.join(' · ')) + '</span>' +
+            '<span class="day-card-sub">' + [sets ? sets + '세트' : '', cmin ? '유산소 ' + cmin + '분' : ''].filter(Boolean).join(' · ') + '</span>' +
+          '</button>';
+          return;
+        }
         html += '<div class="day-title">' + esc(date) +
-          (ft ? '<span class="day-time">' + esc(ft) + ' 시작</span>' : '') + '</div>';
+          (ft ? '<span class="day-time">' + esc(ft) + ' 시작</span>' : '') +
+          (past ? '<button class="ghost small day-fold" data-act="toggle" data-key="' + esc(dayKey) + '">접기 ▴</button>' : '') + '</div>';
 
         var byPart = groupBy(byDate[date] || [], function (e) { return e.part || '기타'; });
         Object.keys(byPart).forEach(function (part) {
