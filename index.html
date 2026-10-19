@@ -733,7 +733,8 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function () {
-    var blob = new Blob([JSON.stringify(loadEntries(), null, 2)], { type: 'application/json' });
+    var data = { entries: loadEntries(), big3: loadBig3() };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = '운동기록_백업_' + todayStr() + '.json';
@@ -751,8 +752,14 @@
     var reader = new FileReader();
     reader.onload = function () {
       try {
-        var incoming = JSON.parse(reader.result);
+        var data = JSON.parse(reader.result);
+        // 예전 백업은 기록 배열만, 새 백업은 { entries, big3 }
+        var incoming = Array.isArray(data) ? data : data && data.entries;
         if (!Array.isArray(incoming)) throw new Error('형식 오류');
+        if (data.big3 && typeof data.big3 === 'object') {
+          try { localStorage.setItem(B3_KEY, JSON.stringify(data.big3)); } catch (e) {}
+          fillBig3();
+        }
         var current = loadEntries();
         var ids = {};
         current.forEach(function (e) { ids[e.id] = true; });
@@ -785,9 +792,16 @@
     });
     document.getElementById('b3-total').textContent = Math.round(total * 10) / 10;
   }
+  function fillBig3() {
+    var b3 = loadBig3();
+    document.querySelectorAll('[data-b3]').forEach(function (inp) {
+      var p = inp.getAttribute('data-b3').split('.');
+      inp.value = (b3[p[0]] || {})[p[1]] || '';
+    });
+    renderBig3();
+  }
   document.querySelectorAll('[data-b3]').forEach(function (inp) {
     var p = inp.getAttribute('data-b3').split('.');
-    inp.value = (loadBig3()[p[0]] || {})[p[1]] || '';
     inp.addEventListener('input', function () {
       var b3 = loadBig3();
       b3[p[0]] = b3[p[0]] || {};
@@ -796,7 +810,7 @@
       renderBig3();
     });
   });
-  renderBig3();
+  fillBig3();
 
   document.getElementById('date').value = todayStr();
   document.getElementById('time').value = nowTime();
