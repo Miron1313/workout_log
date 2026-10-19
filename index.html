@@ -420,6 +420,7 @@
                   if (editId === e.id) {
                     var wv = hasW(e) ? fromKg(Number(e.weight)) : '';
                     html += '<div class="sub-row edit"><span class="idx">' + (i + 1) + '세트</span>' +
+                      '<input type="text" list="partList" id="ep-' + esc(e.id) + '" value="' + esc(e.part || '') + '" placeholder="부위">' +
                       '<input type="number" step="0.5" min="0" inputmode="decimal" id="ew-' + esc(e.id) + '" value="' + esc(wv) + '" placeholder="' + unit + '">' +
                       '<input type="number" min="0" inputmode="numeric" id="er-' + esc(e.id) + '" value="' + esc(e.reps) + '" placeholder="횟수">' +
                       '<input type="text" id="em-' + esc(e.id) + '" value="' + esc(e.memo || '') + '" placeholder="메모">' +
@@ -662,9 +663,10 @@
       var wRaw = document.getElementById('ew-' + id).value;
       var reps = document.getElementById('er-' + id).value;
       var memo = document.getElementById('em-' + id).value.trim();
+      var part = document.getElementById('ep-' + id).value.trim();
       saveEntries(loadEntries().map(function (e) {
         if (e.id !== id) return e;
-        return { id: e.id, date: e.date, time: e.time, part: e.part, name: e.name,
+        return { id: e.id, date: e.date, time: e.time, part: part, name: e.name,
           weight: wRaw === '' ? '' : toKg(Number(wRaw)), reps: reps, memo: memo };
       }));
       editId = null;
