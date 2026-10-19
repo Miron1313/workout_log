@@ -200,6 +200,39 @@
   </div>
 
   <div class="card">
+    <h2>유산소</h2>
+    <div class="row">
+      <div>
+        <label for="cDate">날짜</label>
+        <input type="date" id="cDate">
+      </div>
+      <div>
+        <label for="cTime">시작 시간</label>
+        <input type="time" id="cTime">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="cMin">진행 시간(분)</label>
+        <input type="number" id="cMin" min="0" inputmode="numeric" placeholder="30">
+      </div>
+      <div>
+        <label for="cHr">평균 심박(bpm)</label>
+        <input type="number" id="cHr" min="0" inputmode="numeric" placeholder="140">
+      </div>
+      <div>
+        <label for="cZone">유지 Zone</label>
+        <select id="cZone">
+          <option value="">선택</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+        </select>
+      </div>
+    </div>
+    <button id="cAddBtn">유산소 추가</button>
+    <p class="hint">근력 기록과 같은 날짜면 아래 목록의 그날 안에 함께 보입니다. 유산소만 한 날도 달력에 출석으로 표시됩니다.</p>
+  </div>
+
+  <div class="card">
     <div class="tools">
       <label for="unit" style="margin:0">단위:</label>
       <select id="unit">
@@ -276,7 +309,8 @@
 <script>
   var KEY = 'workout_log_v1';
   var UNIT_KEY = 'workout_unit';
-  var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '하체', '복근', '유산소', '홈트레이닝'];
+  var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '하체', '복근', '홈트레이닝'];
+  var CARDIO_KEY = 'workout_cardio_v1';   // 유산소는 근력 분석에 섞이지 않게 따로 저장
   var RANGE_MONTHS = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
   var LB_PER_KG = 2.20462;
   var filterDate = '';
@@ -297,6 +331,28 @@
     } catch (e) {
       alert('저장에 실패했습니다. 브라우저 저장 공간 설정을 확인해 주세요.');
     }
+  }
+
+  // 유산소 기록: { id, date, time, min, hr, zone }
+  function loadCardio() {
+    try {
+      return JSON.parse(localStorage.getItem(CARDIO_KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCardio(list) {
+    try {
+      localStorage.setItem(CARDIO_KEY, JSON.stringify(list));
+    } catch (e) {
+      alert('저장에 실패했습니다. 브라우저 저장 공간 설정을 확인해 주세요.');
+    }
+  }
+
+  function cardioText(c) {
+    return [c.min ? c.min + '분' : '', c.hr ? '평균 ' + c.hr + 'bpm' : '', c.zone ? 'Zone ' + c.zone : '']
+      .filter(Boolean).join(' · ') || '유산소';
   }
 
   function getUnit() {
@@ -392,19 +448,22 @@
     var shown = filterDate
       ? entries.filter(function (e) { return e.date === filterDate; })
       : entries;
+    var cShown = loadCardio().filter(function (c) { return !filterDate || c.date === filterDate; });
 
     var list = document.getElementById('list');
-    if (shown.length === 0) {
+    if (shown.length === 0 && cShown.length === 0) {
       list.innerHTML = '<div class="card empty">기록이 없습니다.</div>';
     } else {
       var html = '';
       var byDate = groupBy(shown, function (e) { return e.date; });
-      Object.keys(byDate).sort().reverse().forEach(function (date) {
-        var ft = firstTime(byDate[date]);
+      var cByDate = groupBy(cShown, function (c) { return c.date; });
+      var dates = Object.keys(byDate).concat(Object.keys(cByDate).filter(function (d) { return !byDate[d]; }));
+      dates.sort().reverse().forEach(function (date) {
+        var ft = firstTime((byDate[date] || []).concat(cByDate[date] || []));
         html += '<div class="day-title">' + esc(date) +
           (ft ? '<span class="day-time">' + esc(ft) + ' 시작</span>' : '') + '</div>';
 
-        var byPart = groupBy(byDate[date], function (e) { return e.part || '기타'; });
+        var byPart = groupBy(byDate[date] || [], function (e) { return e.part || '기타'; });
         Object.keys(byPart).forEach(function (part) {
           html += '<div class="part-title">' + esc(part) + '</div>';
 
@@ -456,6 +515,16 @@
             html += '</div>';
           });
         });
+
+        if (cByDate[date]) {
+          html += '<div class="part-title">유산소</div><div class="ex">';
+          cByDate[date].forEach(function (c) {
+            html += '<div class="set-row"><div class="set-text"><b>' + esc(cardioText(c)) + '</b>' +
+                (c.time ? '<span class="memo">' + esc(c.time) + ' 시작</span>' : '') + '</div>' +
+              '<button class="danger" data-act="cdel" data-id="' + esc(c.id) + '">삭제</button></div>';
+          });
+          html += '</div>';
+        }
       });
       list.innerHTML = html;
     }
@@ -467,7 +536,10 @@
 
   function renderCalendar() {
     var y = Number(calMonth.slice(0, 4)), m = Number(calMonth.slice(5, 7));
-    var byDate = groupBy(loadEntries(), function (e) { return e.date; });
+    // 유산소는 부위를 '유산소'로 보고 같은 날에 합침
+    var byDate = groupBy(loadEntries().concat(loadCardio().map(function (c) {
+      return { date: c.date, time: c.time, part: '유산소' };
+    })), function (e) { return e.date; });
     var offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;   // 월요일 시작
     var daysIn = new Date(y, m, 0).getDate();
     var today = todayStr();
@@ -694,7 +766,30 @@
       if (!confirm('이 세트를 삭제할까요?')) return;
       saveEntries(loadEntries().filter(function (e) { return e.id !== did; }));
       render();
+    } else if (act === 'cdel') {
+      var cid = b.getAttribute('data-id');
+      if (!confirm('이 유산소 기록을 삭제할까요?')) return;
+      saveCardio(loadCardio().filter(function (c) { return c.id !== cid; }));
+      render();
     }
+  });
+
+  document.getElementById('cAddBtn').addEventListener('click', function () {
+    var c = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
+      date: document.getElementById('cDate').value,
+      time: document.getElementById('cTime').value,
+      min: document.getElementById('cMin').value,
+      hr: document.getElementById('cHr').value,
+      zone: document.getElementById('cZone').value
+    };
+    if (!c.date) { alert('날짜를 입력해 주세요.'); return; }
+    if (!c.min && !c.hr && !c.zone) { alert('진행 시간, 평균 심박, Zone 중 하나는 입력해 주세요.'); return; }
+    var list = loadCardio();
+    list.push(c);
+    saveCardio(list);
+    ['cMin', 'cHr', 'cZone'].forEach(function (id) { document.getElementById(id).value = ''; });
+    render();
   });
 
   document.getElementById('unit').addEventListener('change', function (ev) {
@@ -733,7 +828,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function () {
-    var data = { entries: loadEntries(), big3: loadBig3() };
+    var data = { entries: loadEntries(), big3: loadBig3(), cardio: loadCardio() };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -759,6 +854,12 @@
         if (data.big3 && typeof data.big3 === 'object') {
           try { localStorage.setItem(B3_KEY, JSON.stringify(data.big3)); } catch (e) {}
           fillBig3();
+        }
+        if (Array.isArray(data.cardio)) {
+          var cur = loadCardio(), cids = {};
+          cur.forEach(function (c) { cids[c.id] = true; });
+          data.cardio.forEach(function (c) { if (c && c.id && !cids[c.id]) cur.push(c); });
+          saveCardio(cur);
         }
         var current = loadEntries();
         var ids = {};
@@ -815,6 +916,8 @@
 
   document.getElementById('date').value = todayStr();
   document.getElementById('time').value = nowTime();
+  document.getElementById('cDate').value = todayStr();
+  document.getElementById('cTime').value = nowTime();
   // 오늘 이미 적은 기록이 있으면 마지막 부위·종목을 채워 둠 (다른 종목이면 직접 바꾸면 됨)
   var lastE = loadEntries().slice(-1)[0];
   if (lastE && lastE.date === todayStr()) {
