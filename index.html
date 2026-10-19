@@ -264,11 +264,7 @@
   <div id="list"></div>
 </div>
 
-<datalist id="partList">
-  <option value="Pull"><option value="Push"><option value="가슴"><option value="어깨">
-  <option value="팔"><option value="등"><option value="하체"><option value="복근">
-  <option value="유산소"><option value="홈트레이닝">
-</datalist>
+<datalist id="partList"></datalist>
 <datalist id="nameList">
   <option value="벤치프레스"><option value="인클라인 덤벨 프레스"><option value="밀리터리 프레스">
   <option value="사이드 레터럴 레이즈"><option value="랫풀다운"><option value="풀업">
@@ -280,7 +276,7 @@
 <script>
   var KEY = 'workout_log_v1';
   var UNIT_KEY = 'workout_unit';
-  var PARTS = ['Pull', 'Push', '가슴', '어깨', '팔', '등', '하체', '복근', '유산소', '홈트레이닝'];
+  var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '하체', '복근', '유산소', '홈트레이닝'];
   var RANGE_MONTHS = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
   var LB_PER_KG = 2.20462;
   var filterDate = '';
@@ -623,6 +619,9 @@
   // 부위 빠른 선택 버튼
   document.getElementById('partChips').innerHTML = PARTS.map(function (p) {
     return '<button class="chip" data-part="' + esc(p) + '">' + esc(p) + '</button>';
+  }).join('');
+  document.getElementById('partList').innerHTML = PARTS.map(function (p) {
+    return '<option value="' + esc(p) + '">';
   }).join('');
   document.getElementById('partChips').addEventListener('click', function (ev) {
     var p = ev.target.getAttribute('data-part');
