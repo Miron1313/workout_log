@@ -153,6 +153,9 @@
   }
   .cal-sum { text-align: center; margin-top: 10px; font-size: 15px; }
   .cal-sum b { color: var(--hit); font-size: 18px; }
+  .setinfo { background: var(--chip); color: var(--accent); border-radius: 8px; padding: 8px 10px; font-size: 14px; margin-bottom: 8px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  #ibList table { margin-top: 12px; }
   .big3 { display: grid; grid-template-columns: 20px 1fr 1fr 52px 64px; gap: 6px 8px; align-items: center; }
   /* 제목·입력·결과를 모두 칸 가운데에 맞춰 세로줄이 똑바로 보이게 */
   .big3 label, .big3 input, .b3-est { margin: 0; text-align: center; }
@@ -163,6 +166,32 @@
 <body>
 <div class="wrap">
   <h1>운동 기록</h1>
+
+  <div class="card">
+    <h2>InBody</h2>
+    <div class="row">
+      <div>
+        <label for="ibDate">날짜</label>
+        <input type="date" id="ibDate">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="ibW">체중(kg)</label>
+        <input type="number" id="ibW" min="0" step="0.1" inputmode="decimal" placeholder="70">
+      </div>
+      <div>
+        <label for="ibM">골격근량(kg)</label>
+        <input type="number" id="ibM" min="0" step="0.1" inputmode="decimal" placeholder="32">
+      </div>
+      <div>
+        <label for="ibF">체지방량(kg)</label>
+        <input type="number" id="ibF" min="0" step="0.1" inputmode="decimal" placeholder="12">
+      </div>
+    </div>
+    <button id="ibAddBtn">InBody 기록</button>
+    <div id="ibList"></div>
+  </div>
 
   <div class="card">
     <h2>3대 운동</h2>
@@ -200,6 +229,8 @@
         <input type="text" id="name" list="nameList" placeholder="예: 벤치프레스">
       </div>
     </div>
+    <div class="chips" id="nameChips"></div>
+    <div class="setinfo" id="setInfo"></div>
     <div class="row">
       <div>
         <label for="weight">무게(<span id="unitLabel">kg</span>)</label>
@@ -209,6 +240,11 @@
         <label for="reps">반복 횟수(rep)</label>
         <input type="number" id="reps" min="0" inputmode="numeric" placeholder="10">
       </div>
+      <div>
+        <label for="rest">쉬는 시간</label>
+        <select id="rest"></select>
+        <label class="nodata"><input type="checkbox" id="restNone"> 데이터 없음</label>
+      </div>
     </div>
     <div class="row">
       <div>
@@ -216,8 +252,11 @@
         <input type="text" id="memo" placeholder="예: 8개부터 자세 무너짐 or 이완에 집중하니 자극 잘 들어옴, etc.">
       </div>
     </div>
-    <button id="addBtn">세트 추가</button>
-    <p class="hint">한 세트씩 추가합니다. 추가하면 날짜·부위·운동 종목은 남아 있어서 무게와 횟수만 바꿔 연속으로 넣을 수 있습니다.</p>
+    <div class="btns">
+      <button id="addBtn">세트 추가</button>
+      <button class="ghost" id="dropBtn">동일 세트 추가</button>
+    </div>
+    <p class="hint">세트 추가 = 쉬고 나서 한 다음 세트. 동일 세트 추가 = 쉬지 않고 바로 이어 한 백오프·드랍 세트(세트 번호가 늘지 않아요). 날짜·부위·종목·무게·쉬는 시간은 남아 있어서 바뀐 것만 고치면 됩니다. 한 번 적은 종목은 종목 칸 아래 버튼으로 다시 고를 수 있어요.</p>
   </div>
 
   <div class="card">
@@ -332,18 +371,16 @@
 
 <datalist id="partList"></datalist>
 <datalist id="cardioList"></datalist>
-<datalist id="nameList">
-  <option value="벤치프레스"><option value="인클라인 덤벨 프레스"><option value="밀리터리 프레스">
-  <option value="사이드 레터럴 레이즈"><option value="랫풀다운"><option value="풀업">
-  <option value="바벨 로우"><option value="스쿼트"><option value="레그프레스">
-  <option value="레그 컬"><option value="레그 익스텐션"><option value="데드리프트">
-  <option value="덤벨 컬"><option value="트라이셉스 푸시다운">
-</datalist>
+<datalist id="nameList"></datalist>
 
 <script>
   var KEY = 'workout_log_v1';
   var UNIT_KEY = 'workout_unit';
-  var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '하체', '홈 트레이닝'];
+  var PARTS = ['Pull', 'Push', '가슴+삼두', '어깨', '팔', '등+이두', '상체', '하체', '홈 트레이닝'];
+  var DEFAULT_NAMES = ['벤치프레스', '인클라인 덤벨 프레스', '밀리터리 프레스', '사이드 레터럴 레이즈', '랫풀다운', '풀업',
+    '바벨 로우', '스쿼트', '레그프레스', '레그 컬', '레그 익스텐션', '데드리프트', '덤벨 컬', '트라이셉스 푸시다운'];
+  var RESTS = [30, 60, 90, 120, 150, 180, 300];   // 쉬는 시간(초)
+  var IB_KEY = 'workout_inbody_v1';
   var CARDIO_TYPES = ['걷기', '뛰기', '스텝밀', '수영', '사이클', '로잉', '줄넘기', '등산'];
   var CARDIO_KEY = 'workout_cardio_v1';   // 유산소는 근력 분석에 섞이지 않게 따로 저장
   var RANGE_MONTHS = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
@@ -425,6 +462,13 @@
     return e.reps ? e.reps + '회' : '-';
   }
 
+  function restText(sec) {
+    sec = Number(sec);
+    if (!(sec > 0)) return '';
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m ? m + '분' : '') + (m && s ? ' ' : '') + (s ? s + '초' : '');
+  }
+
   function volText(kgSum) {
     var v = getUnit() === 'lb' ? kgSum * LB_PER_KG : kgSum;
     return Math.round(v).toLocaleString() + getUnit();
@@ -498,13 +542,13 @@
       var dates = Object.keys(byDate).concat(Object.keys(cByDate).filter(function (d) { return !byDate[d]; }));
       dates.sort().reverse().forEach(function (date) {
         var ft = firstTime((byDate[date] || []).concat(cByDate[date] || []));
-        // 지난 날(자정이 지난 기록)은 요약 카드 하나로 접어 두고, 누르면 펼침. 달력에서 고른 날은 펼침
+        // 지난 날(자정이 지난 기록)은 요약 카드 하나로 접어 두고, 누르면 펼침. 달력에서 고르면 펼친 상태로 시작
         var dayKey = 'day:' + date;
-        var past = date < todayStr() && filterDate !== date;
+        var past = date < todayStr();
         if (past && !openKeys[dayKey]) {
           var parts = Object.keys(groupBy(byDate[date] || [], function (e) { return e.part || '기타'; }));
           if (cByDate[date]) parts.push('유산소');
-          var sets = (byDate[date] || []).length;
+          var sets = (byDate[date] || []).filter(function (e) { return !e.drop; }).length;
           var cmin = (cByDate[date] || []).reduce(function (s, c) { return s + (Number(c.min) || 0); }, 0);
           html += '<button class="day-card" data-act="toggle" data-key="' + esc(dayKey) + '">' +
             '<span class="day-card-top"><b>' + esc(date) + '</b>' +
@@ -527,7 +571,7 @@
             html += '<div class="ex"><div class="ex-name">' + esc(ex[0].name) + '</div>';
 
             // 연달아 한 같은 무게·횟수는 한 줄로 묶어서 세트 수만 표시
-            runs(ex, function (e) { return e.weight + '|' + e.reps; }).forEach(function (g) {
+            runs(ex, function (e) { return e.weight + '|' + e.reps + '|' + (e.drop ? 'd' : ''); }).forEach(function (g) {
               var f = g[0];
               var memo = g.map(function (e) { return e.memo; }).filter(Boolean)[0];
               var gkey = f.id;
@@ -535,7 +579,7 @@
 
               html += '<div class="set-row">' +
                 '<div class="set-text"><b>' + esc(wText(f)) + '</b> × ' + esc(rText(f)) +
-                  '<span class="count">' + g.length + '세트</span>' +
+                  '<span class="count">' + (f.drop ? '동일 세트' + (g.length > 1 ? ' ×' + g.length : '') : g.length + '세트') + '</span>' +
                   (memo ? '<span class="memo">' + esc(memo) + '</span>' : '') +
                 '</div>' +
                 '<button class="ghost small" data-act="toggle" data-key="' + esc(gkey) + '">' +
@@ -546,18 +590,22 @@
                 g.forEach(function (e, i) {
                   if (editId === e.id) {
                     var wv = hasW(e) ? fromKg(Number(e.weight)) : '';
-                    html += '<div class="sub-row edit"><span class="idx">' + (i + 1) + '세트</span>' +
+                    html += '<div class="sub-row edit"><span class="idx">' + (e.drop ? '동일' : (i + 1) + '세트') + '</span>' +
                       '<input type="text" list="partList" id="ep-' + esc(e.id) + '" value="' + esc(e.part || '') + '" placeholder="부위">' +
                       '<input type="text" list="nameList" id="en-' + esc(e.id) + '" value="' + esc(e.name) + '" placeholder="종목">' +
                       '<input type="number" step="0.5" min="0" inputmode="decimal" id="ew-' + esc(e.id) + '" value="' + esc(wv) + '" placeholder="' + unit + '">' +
                       '<input type="number" min="0" inputmode="numeric" id="er-' + esc(e.id) + '" value="' + esc(e.reps) + '" placeholder="횟수">' +
+                      '<select id="es-' + esc(e.id) + '">' + [''].concat(RESTS).map(function (v) {
+                        return '<option value="' + v + '"' + (String(e.rest || '') === String(v) ? ' selected' : '') + '>' + (v ? '휴식 ' + restText(v) : '휴식 없음') + '</option>';
+                      }).join('') + '</select>' +
                       '<input type="text" id="em-' + esc(e.id) + '" value="' + esc(e.memo || '') + '" placeholder="메모">' +
                       '<button data-act="save" data-id="' + esc(e.id) + '">저장</button>' +
                       '<button class="ghost small" data-act="cancel">취소</button>' +
                     '</div>';
                   } else {
-                    html += '<div class="sub-row"><span class="idx">' + (i + 1) + '세트</span>' +
+                    html += '<div class="sub-row"><span class="idx">' + (e.drop ? '동일' : (i + 1) + '세트') + '</span>' +
                       '<span>' + esc(wText(e)) + ' × ' + esc(rText(e)) +
+                        (restText(e.rest) ? '<span class="memo">휴식 ' + restText(e.rest) + '</span>' : '') +
                         (e.memo ? '<span class="memo">' + esc(e.memo) + '</span>' : '') + '</span>' +
                       '<span><button class="ghost small" data-act="edit" data-id="' + esc(e.id) + '">수정</button> ' +
                       '<button class="danger" data-act="del" data-id="' + esc(e.id) + '">삭제</button></span>' +
@@ -602,6 +650,8 @@
       });
       list.innerHTML = html;
     }
+    renderNames();
+    renderSetInfo();
     renderCalendar();
     renderAnalysis();
   }
@@ -803,7 +853,55 @@
     if (ev.target.id === 'partBox') document.getElementById('part').focus();
   });
 
-  document.getElementById('addBtn').addEventListener('click', function () {
+  // 내가 적은 종목(최근 것부터) → 고르는 버튼 + 자동완성 목록. 이름이 제각각 되는 걸 막음
+  function myNames() {
+    var seen = {}, out = [];
+    loadEntries().slice().reverse().forEach(function (e) {
+      if (e.name && !seen[e.name]) { seen[e.name] = true; out.push(e.name); }
+    });
+    return out;
+  }
+  function renderNames() {
+    var mine = myNames();
+    // ponytail: 버튼은 최근 15개만. 종목이 아주 많아지면 부위별로 나누는 걸 고려
+    document.getElementById('nameChips').innerHTML = mine.slice(0, 15).map(function (n) {
+      return '<button class="chip" data-name="' + esc(n) + '">' + esc(n) + '</button>';
+    }).join('');
+    document.getElementById('nameList').innerHTML = mine.concat(DEFAULT_NAMES.filter(function (n) {
+      return mine.indexOf(n) < 0;
+    })).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
+  }
+  document.getElementById('nameChips').addEventListener('click', function (ev) {
+    var n = ev.target.getAttribute('data-name');
+    if (n) { document.getElementById('name').value = n; renderSetInfo(); }
+  });
+
+  // 그날 같은 종목을 연달아 몇 세트 했는지 (동일 세트는 세지 않음)
+  function doneSets(date, name) {
+    var day = loadEntries().filter(function (e) { return e.date === date; });
+    var n = 0;
+    for (var i = day.length - 1; i >= 0 && day[i].name === name; i--) if (!day[i].drop) n++;
+    return n;
+  }
+  function renderSetInfo() {
+    var name = document.getElementById('name').value.trim();
+    var el = document.getElementById('setInfo');
+    if (!name) { el.textContent = '운동 종목을 고르면 지금 몇 번째 세트인지 여기 보여요.'; return; }
+    var n = doneSets(document.getElementById('date').value, name);
+    el.innerHTML = esc(name) + ' <b>' + (n + 1) + '번째 세트</b> 차례' + (n ? ' · 지금까지 ' + n + '세트 완료' : '');
+  }
+  document.getElementById('name').addEventListener('input', renderSetInfo);
+  document.getElementById('date').addEventListener('change', renderSetInfo);
+
+  document.getElementById('rest').innerHTML = '<option value="">선택</option>' + RESTS.map(function (v) {
+    return '<option value="' + v + '">' + restText(v) + '</option>';
+  }).join('');
+
+  document.getElementById('addBtn').addEventListener('click', function () { addSet(false); });
+  document.getElementById('dropBtn').addEventListener('click', function () { addSet(true); });
+
+  // drop = 쉬지 않고 바로 이어 한 세트 (백오프·드랍). 세트 번호는 그대로, 쉬는 시간 없음
+  function addSet(drop) {
     var date = document.getElementById('date').value;
     flushPartInput();
     var part = partSel.join(', ') || '기타';
@@ -814,9 +912,10 @@
 
     if (!date) { alert('날짜를 입력해 주세요.'); return; }
     if (!name) { alert('운동 종목을 입력해 주세요.'); return; }
+    if (drop && !doneSets(date, name)) { alert('먼저 "세트 추가"로 ' + name + ' 세트를 넣어 주세요.'); return; }
 
     var entries = loadEntries();
-    entries.push({
+    var e = {
       id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
       date: date,
       time: document.getElementById('time').value,
@@ -824,17 +923,19 @@
       name: name,
       weight: wRaw === '' ? '' : toKg(Number(wRaw)),
       reps: reps,
-      memo: memo
-    });
+      memo: memo,
+      rest: drop ? '' : document.getElementById('restNone').checked ? 'none' : document.getElementById('rest').value
+    };
+    if (drop) e.drop = true;
+    entries.push(e);
     saveEntries(entries);
 
-    // 다음 세트를 바로 넣을 수 있게 무게·횟수·메모만 비움
-    document.getElementById('weight').value = '';
+    // 다음 세트를 바로 넣을 수 있게 횟수·메모만 비움 (무게·쉬는 시간은 그대로)
     document.getElementById('reps').value = '';
     document.getElementById('memo').value = '';
-    document.getElementById('weight').focus();
+    document.getElementById('reps').focus();
     render();
-  });
+  }
 
   document.getElementById('list').addEventListener('click', function (ev) {
     var b = ev.target.closest('button[data-act]');
@@ -858,10 +959,14 @@
       var memo = document.getElementById('em-' + id).value.trim();
       var part = document.getElementById('ep-' + id).value.trim();
       var name = document.getElementById('en-' + id).value.trim();
+      var rest = document.getElementById('es-' + id).value;
       saveEntries(loadEntries().map(function (e) {
         if (e.id !== id) return e;
-        return { id: e.id, date: e.date, time: e.time, part: part, name: name || e.name,
-          weight: wRaw === '' ? '' : toKg(Number(wRaw)), reps: reps, memo: memo };
+        var n = {};
+        for (var k in e) n[k] = e[k];
+        n.part = part; n.name = name || e.name; n.weight = wRaw === '' ? '' : toKg(Number(wRaw));
+        n.reps = reps; n.memo = memo; n.rest = rest;
+        return n;
       }));
       editId = null;
       render();
@@ -913,7 +1018,7 @@
   });
 
   // '데이터 없음'을 체크하면 옆 칸을 비우고 끔
-  [['cHrNone', 'cHr'], ['cZoneNone', 'cZone']].forEach(function (p) {
+  [['cHrNone', 'cHr'], ['cZoneNone', 'cZone'], ['restNone', 'rest']].forEach(function (p) {
     document.getElementById(p[0]).addEventListener('change', function (ev) {
       var f = document.getElementById(p[1]);
       f.disabled = ev.target.checked;
@@ -943,6 +1048,7 @@
     var cell = ev.target.closest('[data-date]');
     if (!cell) return;
     filterDate = cell.getAttribute('data-date');
+    openKeys['day:' + filterDate] = true;
     document.getElementById('filterDate').value = filterDate;
     render();
     document.getElementById('list').scrollIntoView({ behavior: 'smooth' });
@@ -958,6 +1064,7 @@
 
   document.getElementById('filterDate').addEventListener('change', function (ev) {
     filterDate = ev.target.value;
+    openKeys['day:' + filterDate] = true;
     render();
   });
 
@@ -968,7 +1075,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function () {
-    var data = { entries: loadEntries(), big3: loadBig3(), cardio: loadCardio() };
+    var data = { entries: loadEntries(), big3: loadBig3(), cardio: loadCardio(), inbody: loadIb() };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1000,6 +1107,13 @@
           cur.forEach(function (c) { cids[c.id] = true; });
           data.cardio.forEach(function (c) { if (c && c.id && !cids[c.id]) cur.push(c); });
           saveCardio(cur);
+        }
+        if (Array.isArray(data.inbody)) {
+          var ib = loadIb(), iids = {};
+          ib.forEach(function (x) { iids[x.id] = true; });
+          data.inbody.forEach(function (x) { if (x && x.id && !iids[x.id]) ib.push(x); });
+          saveIb(ib);
+          renderIb();
         }
         var current = loadEntries();
         var ids = {};
@@ -1054,6 +1168,46 @@
   });
   fillBig3();
 
+  // InBody: { id, date, w(체중), m(골격근량), f(체지방량) } 모두 kg
+  function loadIb() {
+    try { return JSON.parse(localStorage.getItem(IB_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveIb(list) {
+    try { localStorage.setItem(IB_KEY, JSON.stringify(list)); } catch (e) { alert('저장에 실패했습니다. 브라우저 저장 공간 설정을 확인해 주세요.'); }
+  }
+  function renderIb() {
+    var list = loadIb().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    document.getElementById('ibList').innerHTML = list.length ? '<table><thead><tr><th>날짜</th><th>체중</th><th>골격근량</th><th>체지방량</th><th></th></tr></thead><tbody>' +
+      list.map(function (x) {
+        return '<tr><td>' + esc(x.date) + '</td><td>' + esc(x.w || '-') + '</td><td>' + esc(x.m || '-') + '</td><td>' + esc(x.f || '-') + '</td>' +
+          '<td><button class="danger" data-ibdel="' + esc(x.id) + '">삭제</button></td></tr>';
+      }).join('') + '</tbody></table>' : '';
+  }
+  document.getElementById('ibAddBtn').addEventListener('click', function () {
+    var x = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
+      date: document.getElementById('ibDate').value,
+      w: document.getElementById('ibW').value,
+      m: document.getElementById('ibM').value,
+      f: document.getElementById('ibF').value
+    };
+    if (!x.date) { alert('날짜를 입력해 주세요.'); return; }
+    if (!x.w && !x.m && !x.f) { alert('체중·골격근량·체지방량 중 하나는 입력해 주세요.'); return; }
+    var list = loadIb();
+    list.push(x);
+    saveIb(list);
+    ['ibW', 'ibM', 'ibF'].forEach(function (id) { document.getElementById(id).value = ''; });
+    renderIb();
+  });
+  document.getElementById('ibList').addEventListener('click', function (ev) {
+    var id = ev.target.getAttribute('data-ibdel');
+    if (!id || !confirm('이 InBody 기록을 삭제할까요?')) return;
+    saveIb(loadIb().filter(function (x) { return x.id !== id; }));
+    renderIb();
+  });
+  document.getElementById('ibDate').value = todayStr();
+  renderIb();
+
   document.getElementById('date').value = todayStr();
   document.getElementById('time').value = nowTime();
   document.getElementById('cDate').value = todayStr();
@@ -1064,6 +1218,9 @@
     partSel = lastE.part === '기타' ? [] : lastE.part.split(', ');
     renderPartTags();
     document.getElementById('name').value = lastE.name;
+    document.getElementById('weight').value = hasW(lastE) ? fromKg(Number(lastE.weight)) : '';
+    if (lastE.rest === 'none') { document.getElementById('restNone').checked = true; document.getElementById('rest').disabled = true; }
+    else if (lastE.rest) document.getElementById('rest').value = lastE.rest;
   }
   render();
 
