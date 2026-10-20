@@ -185,7 +185,7 @@
         <input type="number" id="ibM" min="0" step="0.1" inputmode="decimal" placeholder="32">
       </div>
       <div>
-        <label for="ibF">체지방량(kg)</label>
+        <label for="ibF">체지방률(%)</label>
         <input type="number" id="ibF" min="0" step="0.1" inputmode="decimal" placeholder="12">
       </div>
     </div>
@@ -1170,7 +1170,7 @@
   });
   fillBig3();
 
-  // InBody: { id, date, w(체중), m(골격근량), f(체지방량) } 모두 kg
+  // InBody: { id, date, w(체중), m(골격근량), f(체지방률 %) }, 체중·골격근량은 kg
   function loadIb() {
     try { return JSON.parse(localStorage.getItem(IB_KEY)) || []; } catch (e) { return []; }
   }
@@ -1179,9 +1179,9 @@
   }
   function renderIb() {
     var list = loadIb().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-    document.getElementById('ibList').innerHTML = list.length ? '<table><thead><tr><th>날짜</th><th>체중</th><th>골격근량</th><th>체지방량</th><th></th></tr></thead><tbody>' +
+    document.getElementById('ibList').innerHTML = list.length ? '<table><thead><tr><th>날짜</th><th>체중</th><th>골격근량</th><th>체지방률</th><th></th></tr></thead><tbody>' +
       list.map(function (x) {
-        return '<tr><td>' + esc(x.date) + '</td><td>' + esc(x.w || '-') + '</td><td>' + esc(x.m || '-') + '</td><td>' + esc(x.f || '-') + '</td>' +
+        return '<tr><td>' + esc(x.date) + '</td><td>' + esc(x.w || '-') + '</td><td>' + esc(x.m || '-') + '</td><td>' + (x.f ? esc(x.f) + '%' : '-') + '</td>' +
           '<td><button class="danger" data-ibdel="' + esc(x.id) + '">삭제</button></td></tr>';
       }).join('') + '</tbody></table>' : '';
   }
@@ -1194,7 +1194,7 @@
       f: document.getElementById('ibF').value
     };
     if (!x.date) { alert('날짜를 입력해 주세요.'); return; }
-    if (!x.w && !x.m && !x.f) { alert('체중·골격근량·체지방량 중 하나는 입력해 주세요.'); return; }
+    if (!x.w && !x.m && !x.f) { alert('체중·골격근량·체지방률 중 하나는 입력해 주세요.'); return; }
     var list = loadIb();
     list.push(x);
     saveIb(list);
